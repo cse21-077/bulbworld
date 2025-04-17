@@ -1,93 +1,131 @@
-"use client"
+"use client";
 
-import type React from "react"
+import React, { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { auth } from "@/lib/firebase"; // Import Firebase auth
+import { signInWithEmailAndPassword } from "firebase/auth"; // Import sign-in method
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Checkbox } from "@/components/ui/checkbox"
-import { useRouter } from "next/navigation"
-import { useToast } from "@/components/ui/use-toast"
-import Link from "next/link"
+const formSchema = z.object({
+  email: z.string().email({ message: "Please enter a valid email address." }),
+  password: z.string().min(8, { message: "Password must be at least 8 characters." }),
+});
 
 export function LoginForm() {
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
-  const router = useRouter()
-  const { toast } = useToast()
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
+  const [loginSuccess, setLoginSuccess] = useState(false);
+  const router = useRouter();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      email: "",
+      password: "",
+    },
+  });
 
-    // Simulate authentication
-    setTimeout(() => {
-      // For demo purposes, we'll just redirect to the dashboard
-      toast({
-        title: "Login successful",
-        description: "Welcome to The Bulb World Innovation Hub",
-      })
-      setIsLoading(false)
-      router.push("/dashboard")
-    }, 1500)
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    setIsSubmitting(true);
+    setLoginError(null); // Clear any previous errors
+    try {
+      // Firebase sign-in
+      const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
+      const user = userCredential.user;
+
+      // Set success state and redirect
+      setLoginSuccess(true);
+      setTimeout(() => {
+        router.push("/dashboard");
+      }, 1500); // Redirect after 1.5 seconds
+    } catch (error: any) {
+      // Handle Firebase errors
+      console.error("Firebase sign-in error:", error.message);
+      setLoginError(error.message);
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
-    <Card className="w-full">
-      <CardHeader>
-        <CardTitle>Sign In</CardTitle>
-        <CardDescription>Enter your credentials to access the Innovation Hub</CardDescription>
-      </CardHeader>
-      <form onSubmit={handleSubmit}>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="name@bulbworld.co.bw"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </div>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="password">Password</Label>
-              <Link href="#" className="text-sm text-primary hover:underline">
-                Forgot password?
-              </Link>
-            </div>
-            <Input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-          </div>
-          <div className="flex items-center space-x-2">
-            <Checkbox id="remember" />
-            <Label htmlFor="remember" className="text-sm font-normal">
-              Remember me for 30 days
-            </Label>
-          </div>
-        </CardContent>
-        <CardFooter className="flex flex-col">
-          <Button type="submit" className="w-full bg-primary hover:bg-primary/90" disabled={isLoading}>
-            {isLoading ? "Signing in..." : "Sign In"}
+    <>
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <FormField
+            control={form.control}
+            name="email"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Email</FormLabel>
+                <FormControl>
+                  <Input placeholder="Enter your email" {...field} type="email" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="password"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Password</FormLabel>
+                <FormControl>
+                  <Input placeholder="Enter your password" {...field} type="password" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <Button type="submit" disabled={isSubmitting} className="w-full">
+            {isSubmitting ? "Signing In..." : "Sign In"}
           </Button>
-          <p className="mt-4 text-center text-sm text-muted-foreground">
-            Don't have an account?{" "}
-            <Link href="#" className="text-primary hover:underline">
-              Contact your administrator
-            </Link>
-          </p>
-        </CardFooter>
-      </form>
-    </Card>
-  )
+        </form>
+      </Form>
+
+      {/* Error Dialog */}
+      <Dialog open={loginError !== null} onOpenChange={() => setLoginError(null)}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Login Failed</DialogTitle>
+            <DialogDescription>
+              {loginError || "Invalid credentials. Please try again."}
+            </DialogDescription>
+          </DialogHeader>
+        </DialogContent>
+      </Dialog>
+
+      {/* Success Dialog */}
+      <Dialog open={loginSuccess} onOpenChange={() => setLoginSuccess(false)}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Login Successful</DialogTitle>
+            <DialogDescription>
+              You have successfully logged in. Redirecting to dashboard...
+            </DialogDescription>
+          </DialogHeader>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
 }

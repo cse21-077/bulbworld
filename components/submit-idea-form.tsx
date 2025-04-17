@@ -13,6 +13,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/components/ui/use-toast"
+import { db, auth } from "@/lib/firebase"; // Import Firestore and auth
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 
 export function SubmitIdeaForm() {
   const router = useRouter()
@@ -42,20 +44,47 @@ export function SubmitIdeaForm() {
     }
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
 
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      // Add idea to Firestore
+      const ideasCollectionRef = collection(db, "ideas");
+      const user = auth.currentUser;
+      if (!user) {
+        throw new Error("User not logged in");
+      }
+
+      await addDoc(ideasCollectionRef, {
+        title: title,
+        description: description,
+        department: department,
+        tags: tags,
+        submittedBy: user.displayName || user.email || "Anonymous",
+        submittedDate: serverTimestamp(),
+        votes: 0,
+        comments: 0,
+        userId: user.uid,
+        status: "in-review", // Default status
+      });
+
       toast({
         title: "Idea submitted successfully!",
         description: "Your innovation idea has been submitted for review.",
-      })
-      setIsSubmitting(false)
-      router.push("/dashboard/ideas")
-    }, 1500)
-  }
+      });
+      router.push("/dashboard/ideas");
+    } catch (error: any) {
+      console.error("Error submitting idea:", error);
+      toast({
+        title: "Error submitting idea",
+        description: error.message || "Something went wrong. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div className="max-w-2xl mx-auto">

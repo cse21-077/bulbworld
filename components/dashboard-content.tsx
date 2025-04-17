@@ -1,5 +1,6 @@
 "use client"
 
+import { useState, useEffect } from "react"; // Import useState and useEffect
 import { BarChart3, BookOpen, BrainCircuit, ChevronRight, LightbulbIcon, ThumbsUp, Trophy, Users2 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -7,13 +8,34 @@ import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import Link from "next/link"
+import { auth } from "@/lib/firebase"; // Import Firebase auth
 
 export function DashboardContent() {
+  const [userName, setUserName] = useState<string | null>("Kea"); // Initialize with a default name
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      if (user) {
+        // If the user is logged in, get their name from Firebase
+        let name = user.displayName;
+        if (!name && user.email) {
+          name = user.email.split("@")[0]; // Extract username from email
+        }
+        setUserName(name || "User"); // Use extracted name or "User" as default
+      } else {
+        // If the user is not logged in, set the name to null
+        setUserName(null);
+      }
+    });
+
+    // Unsubscribe from the observer when the component unmounts
+    return () => unsubscribe();
+  }, []);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Welcome back, Kea!</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Welcome back, {userName}!</h1>
           <p className="text-muted-foreground">Track your innovation journey and collaborate with your team.</p>
         </div>
         <Link href="/dashboard/submit">

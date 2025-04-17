@@ -23,7 +23,12 @@ export default function LoginPage() {
               </div>
             </Link>
             <h1 className="text-2xl font-bold mt-6 mb-2">Innovation Hub Login</h1>
-            <p className="text-muted-foreground">Sign in to access the Innovation Hub</p>
+            <p className="text-muted-foreground">
+              Sign in to access the Innovation Hub.{" "}
+              <Link href="/register" className="text-primary hover:underline">
+                Create an account
+              </Link>
+            </p>
           </div>
           <LoginForm />
         </div>
